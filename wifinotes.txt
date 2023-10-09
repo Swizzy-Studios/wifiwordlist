@@ -1,0 +1,22 @@
+~ include middle 3 phone
+add common number as separator !!
+|_after this, separate only 1 word at a time in arrays provided to concat() that are bigger than 2 !!
+add option to disable int checks when appending common numbers under controls
+add state concat for all and as separate function
+further separate street into two parts, streetname,street type.
+add streetname (no street type,) + street number
+add biznames + desc
+add biznames + desc + other
+add ALL + desc
+add ALL + desc + other
+add option to expand common numbers to earlier date (or any other number range)
+add owner initials to other common
+X apply other common to all lines? probably add control for this
+~fix acronyms with wild extra characters
+~ fix aka with wild extra characters
+add bizname specific acronym
+add bizname specific acronym + altbiznames
+~ add slogans :( X
+~ Fuji1234 not present? FIX UNDERARR ISSUES!!!! X
+Add l337 substitution for 1 char at a time if over leetlimiter < need control for this
+Add "lite" version
