@@ -5,15 +5,17 @@ import getopt
 #========================================
 #leetlimit is used to prevent the leet speak conversion of passwords over a certain amount of characters
 #used in concat()
-leetlimit = 5
+leetlimit = 4
 #maxlength limits the maximum character length that the resulting concatenations can be
 maxlength = 15
+#minimumpwdlength Minimum length for password. Default is 8
+minimumpwdlength = 8
 #commonnumberseparator enables the ability to separate concatenated words with common numbers  0 = off 1 = on
-commonnumberseparator = 1
+commonnumberseparator = 0
 #specialcharseparator enables the ability to separate concatenated words with special characters 0 = off 1 = on
 speccharseparator = 1
 #singleseparator enables concatenation of provided arrays separating each element with another, in addition to both
-singleseparator = 1
+singleseparator = 0
 #reversewords enables the reversal of certain words such as the description, businessname and alt business names "company" to "ynapmoc" 0 = off 1 = on
 reversewords = 0
 #singlespecchar enables the substitution of single characters with special characters per iteration if the number of substitutable characters is above the leetlimit 0 = off 1 = on
@@ -29,15 +31,15 @@ noprependspecchar = 0
 #noprependcommonnum prevents prepending common number list to all results 0 = prepend enabled 1 = prepend disabled
 noprependcommonnum = 0
 #disableunderarr Disables the array that is generated from the result of concatenation functions if resulting passwords are under 8 characters. Several methods are used to try and artifically expand the length of words in this array.
-disableunderarr = 0
+disableunderarr = 1
 #(new)disabledeepconcat Disables larger concatenation patterns, typically preventing 3 or more objects from being concatenated. Ex. business name + description entry + other entry 0 = enabled 1 = disabled
 disabledeepconcat = 0
 #extendedcommonnumbers Enables a larger list of common numbers. Common Number list used in final append, prepend operations as well as in concatenation if enabled. 0 = Enables larger list, 1 = only add numbers provided
 extendedcommonnumbers = 0
 #first4street Adds the first 3-4 characters of the street name to the "st" list. This is a common pattern seen in wifi passwords. 1 = enabled 0 = disabled
-first4street = 1
+first4street = 0
 #(new)first4town Adds the first 3-4 characters of the town to the "alttownship" list. This is a common pattern seen in wifi passwords. 1 = enabled 0 = disabled. You can also add these manually to the alttown prompt
-first4town = 1
+first4town = 0
 #(new)lucky plucks out passwords matching a criteria that is commonly seen to reduce the overall tested passwords. Saves to ssid_lucky.txt
 lucky = 0
 #========================================
@@ -56,7 +58,7 @@ ssid = input("Please enter the SSID:  ")
 if infile == 1:
     inputfileread = open(ssid + "_input.txt","r")
     inputfilelines = inputfileread.readlines()
-    bizname = aka = phone = date = addr = alttownship = desc = owner = ownerphone = owneraddr = slogans = other = otherints = ''
+    bizname = aka = phone = date = addr = alttownship = desc = owner = ownerphone = owneraddr = slogans = other = otherints = commonwordsentries = ''
     for line in inputfilelines:
         line = line.rstrip()
         lineparts = line.split(":")
@@ -88,6 +90,8 @@ if infile == 1:
             other = lineparts[1]
         elif lineparts[0] == "otherints":
             otherints = lineparts[1]
+        elif lineparts[0] == "commonwordsentries":
+            commonwordsentries = lineparts[1]
     inputfileread.close()
 else:
     bizname = input("Please enter Business Name:  ")
@@ -105,6 +109,7 @@ else:
     slogans = input("Please enter any business slogans, separated by commas:  ")
     other = input("Please enter other words that could be popular choices for the business or it's owner:  ")
     otherints = input("Please enter any other numbers that could be relevant, such as a range of years slightly preceding the public founding date. Accepts '-' denoted ranges. Separate with commas: ")
+    commonwordsentries = input("Please enter common words that describe the type of password or network you are targeting. Default is WiFi, wireless, staff, corporate, business, employee. '-' prefix removes a default word. '~' character splits the word before sending it to the concat function: ")
     fileopt = input("Save input to file? y/n: ")
 
     while fileopt.lower() != "y" and fileopt.lower() != "n":
@@ -140,6 +145,8 @@ else:
             inputfile.write('other:' + other + '\n')
         if otherints != '':
             inputfile.write('otherints:' + otherints + '\n')
+        if commonwordsentries != '':
+            inputfile.write('commonwordsentries:' + commonwordsentries + '\n')
         inputfile.close()
 wordlistfile = ssid + '_wordlist.txt'
 wlfhandle = open(wordlistfile,'w')
@@ -149,7 +156,7 @@ acronym = []
 biznameparts = bizname.split(" ")
 tempacro = ''
 underarr = []
-
+defaultcommonwords = ['wi~fi','wireless','staff','corporate','business','employee']
 #Create List of Acronyms
 #========================================
 if len(biznameparts) > 1:
@@ -327,6 +334,7 @@ if len(biznameparts) > 1:
 streetobjects = []
 altstreetnames = []
 altownerstreetnames = []
+streettypeobj = []
 num = street = town = zipcode = state = streettype = ''
 ownernum = ownerstreet = ownertown = ownerzipcode = ownerstate = ownerstreettype = ''
 if addr != "":
@@ -418,7 +426,7 @@ if first4town == 1:
         alttownshipentries.append(town[0:3].replace(" ",""))
         alttownshipentries.append(town[0:4].replace(" ",""))
         alttownship += ',first4town'
-addrconvert.close()
+    addrconvert.close()
 while ("" in alttownshipentries):
     alttownshipentries.remove("")
 #Create Acronym for town
@@ -566,6 +574,18 @@ def leetconvertsingle(word,common):
                         leetlist.append(tempword)
                         
             i+=1
+#Gather Common Wordlist
+commonwords = []
+if commonwordsentries != '':
+    for commonwordsentry in commonwordsentries.split(','):
+        if commonwordsentry[0] == '-':
+            removecommonwordsentry = commonwordsentry[1:]
+            for defaultword in defaultcommonwords:
+                if defaultword == removecommonwordsentry:
+                    defaultcommonwords.remove(defaultword)
+        else:
+            commonwords.append(commonwordsentry)
+commonwords+=defaultcommonwords
 #def filter(word):
 
 #Combine commonly seen combinations of business specific data
@@ -797,13 +817,17 @@ def wordengine(word):
         tempwordarr.append(word[0].upper() + word[1:].replace(" ","").lower())
         tempwordarr.append(word[0].lower() + word[1:].replace(" ","").lower())
     else:
-        underarr.append(word.replace(" ",""))
-        underarr.append(word[0].upper() + word[1:].replace(" ",""))
-        underarr.append(word[0].lower() + word[1:].replace(" ",""))
-        underarr.append(word.replace(" ","").lower())
-        underarr.append(word.replace(" ","").upper())
-        underarr.append(word[0].upper() + word[1:].replace(" ","").lower())
-        underarr.append(word[0].lower() + word[1:].replace(" ","").lower())
+        try:
+            underarr.append(word.replace(" ",""))
+            underarr.append(word[0].upper() + word[1:].replace(" ",""))
+            underarr.append(word[0].lower() + word[1:].replace(" ",""))
+            underarr.append(word.replace(" ","").lower())
+            underarr.append(word.replace(" ","").upper())
+            underarr.append(word[0].upper() + word[1:].replace(" ","").lower())
+            underarr.append(word[0].lower() + word[1:].replace(" ","").lower())
+        except:
+            print(word)
+            print(underarr)
         
     tempwordarr.append(word.replace(" ","-"))
     tempwordarr.append(word.replace(" ","_"))
@@ -845,7 +869,9 @@ def wordengine(word):
                 
         if convertcharcounter <= leetlimit:
             leetconvert(convert,1)
-
+        else:
+            if singlespecchar == 1:
+                leetconvertsingle(convert,1)
     return tempwordarr
 
 #Add 
@@ -891,6 +917,7 @@ else:
 if phone != '':
     if len(phone) == 10:
         wordlistall.append(phone)
+        print(phone)
     else:
         for phoneentry in phoneentries:
             if (len(phoneentry) >= 8):
@@ -1008,12 +1035,6 @@ if state != '':
             wordlistall.append(w)
         else:
             underarr.append(w)
-print('bizname')
-print(bizname)
-print('aka')
-print(altbiznames)
-print('acronym')
-print(acronym)
 
 
 
@@ -1024,44 +1045,19 @@ print(acronym)
 #bizname + common words
 #Replaced concatnoleet with concat due to leetlimit & singlespecchar overrides
 if bizname != "":
-    wordlist = concat([bizname.replace(" ",""),'wi','fi'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
+    for commonword in commonwords:
+        if len(commonword.split('~')) > 1:
+            concatarray = [bizname.replace(" ","")]
+            for commonwordpart in commonword.split('~'):
+                concatarray.append(commonwordpart)
         else:
-            underarr.append(w)
-    
-    wordlist = concat([bizname.replace(" ",""),'wireless'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w) 
-    wordlist = concat([bizname.replace(" ",""),'staff'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
-    wordlist = concat([bizname.replace(" ",""),'corporate'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
-    wordlist = concat([bizname.replace(" ",""),'business'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w) 
-    wordlist = concat([bizname.replace(" ",""),'employee'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w) 
-
+            concatarray = [bizname.replace(" ",""),commonword]
+        wordlist = concat(concatarray)
+        for w in wordlist:
+            if len(w) >= 8:
+                wordlistall.append(w)
+            else:
+                underarr.append(w)
 #bizname + last 4 phone
 if bizname != "" and phonelast4 != "":
     wordlist = concat([bizname.replace(" ",""),phonelast4])
@@ -1481,42 +1477,20 @@ if bizname != "" and desc != "":
 
 if len(altbiznames) >= 1:
     for abn in altbiznames:
-        wordlist = concat([abn.replace(" ",""),'wi','fi'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
+        for commonword in commonwords:
+            if len(commonword.split('~')) > 1:
+                concatarray = [abn.replace(" ","")]
+                for commonwordpart in commonword.split('~'):
+                    concatarray.append(commonwordpart)
             else:
-                underarr.append(w)
-        wordlist = concat([abn.replace(" ",""),'wireless'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([abn.replace(" ",""),'staff'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([abn.replace(" ",""),'corporate'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([abn.replace(" ",""),'business'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([abn.replace(" ",""),'employee'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
+                concatarray = [abn.replace(" ",""),commonword]
+            wordlist = concat(concatarray)
+            for w in wordlist:
+                if len(w) >= 8:
+                    wordlistall.append(w)
+                else:
+                    underarr.append(w)
+        
 #altbizname + last 4 phone
 if ((len(altbiznames) >= 1) and (phonelast4 != "")):
     for abn in altbiznames:
@@ -2008,42 +1982,20 @@ if ((len(altbiznames) >= 1) and (desc != "")):
  #ACRONYMS               
 if len(acronym) > 0:
     for acro in acronym:
-        wordlist = concat([acro.replace(" ",""),'wi','fi'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
+        for commonword in commonwords:
+            if len(commonword.split('~')) > 1:
+                concatarray = [acro.replace(" ","")]
+                for commonwordpart in commonword.split('~'):
+                    concatarray.append(commonwordpart)
             else:
-                underarr.append(w)
-        wordlist = concatnoleet([acro.replace(" ",""),'wireless'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concatnoleet([acro.replace(" ",""),'staff'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concatnoleet([acro.replace(" ",""),'corporate'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concatnoleet([acro.replace(" ",""),'business'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concatnoleet([acro.replace(" ",""),'employee'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
+                concatarray = [acro.replace(" ",""),commonword]
+            wordlist = concat(concatarray)
+            for w in wordlist:
+                if len(w) >= 8:
+                    wordlistall.append(w)
+                else:
+                    underarr.append(w)
+ 
 #acronym + last 4 phone
 if ((len(acronym) > 0) and (phonelast4 != "")):
     for acro in acronym:
@@ -2521,42 +2473,20 @@ if (len(acronym) > 0):
 
 if desc != "":
     for descentry in descentries:
-        wordlist = concat([descentry.replace(" ",""),'wi','fi'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
+        for commonword in commonwords:
+            if len(commonword.split('~')) > 1:
+                concatarray = [descentry.replace(" ","")]
+                for commonwordpart in commonword.split('~'):
+                    concatarray.append(commonwordpart)
             else:
-                underarr.append(w)
-        wordlist = concat([descentry.replace(" ",""),'wireless'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([descentry.replace(" ",""),'staff'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([descentry.replace(" ",""),'corporate'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([descentry.replace(" ",""),'business'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([descentry.replace(" ",""),'employee'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
+                concatarray = [descentry.replace(" ",""),commonword]
+            wordlist = concat(concatarray)
+            for w in wordlist:
+                if len(w) >= 8:
+                    wordlistall.append(w)
+                else:
+                    underarr.append(w)
+
 #desc + last 4 phone
 if ((desc != "") and (phonelast4 != "")):
     for descentry in descentries:
@@ -2872,42 +2802,20 @@ if ((desc != "") and (month != "") and (yy != "")):
 #other + common words
 if other != "":
     for otherentry in otherentries:
-        wordlist = concat([otherentry.replace(" ",""),'wi','fi'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
+        for commonword in commonwords:
+            if len(commonword.split('~')) > 1:
+                concatarray = [otherentry.replace(" ","")]
+                for commonwordpart in commonword.split('~'):
+                    concatarray.append(commonwordpart)
             else:
-                underarr.append(w)
-        wordlist = concat([otherentry.replace(" ",""),'wireless'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([otherentry.replace(" ",""),'staff'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([otherentry.replace(" ",""),'corporate'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([otherentry.replace(" ",""),'business'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([otherentry.replace(" ",""),'employee'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
+                concatarray = [otherentry.replace(" ",""),commonword]
+            wordlist = concat(concatarray)
+            for w in wordlist:
+                if len(w) >= 8:
+                    wordlistall.append(w)
+                else:
+                    underarr.append(w)
+
 #other + last 4 phone
 if ((other != "") and (phonelast4 != "")):
     for otherentry in otherentries:
@@ -3219,120 +3127,52 @@ if ((other != "") and (month != "") and (yy != "")):
             else:
                 underarr.append(w)                
 #township + common words
+#HEREHERERERERERERE 12/14/23
 if town != "":
-    wordlist = concat([town.replace(" ",""),'wi','fi'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
+    for commonword in commonwords:
+        if len(commonword.split('~')) > 1:
+            concatarray = [town.replace(" ","")]
+            for commonwordpart in commonword.split('~'):
+                concatarray.append(commonwordpart)
         else:
-            underarr.append(w)
-    wordlist = concat([town.replace(" ",""),'wireless'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w) 
-    wordlist = concat([town.replace(" ",""),'staff'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
-    wordlist = concat([town.replace(" ",""),'corporate'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
-    wordlist = concat([town.replace(" ",""),'business'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w) 
-    wordlist = concat([town.replace(" ",""),'employee'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
+            concatarray = [town.replace(" ",""),commonword]
+        wordlist = concat(concatarray)
+        for w in wordlist:
+            if len(w) >= 8:
+                wordlistall.append(w)
+            else:
+                underarr.append(w)
 if len(townacro) > 0:
     for ta in townacro:
-        wordlist = concat([ta.replace(" ",""),'wi','fi'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
+        for commonword in commonwords:
+            if len(commonword.split('~')) > 1:
+                concatarray = [ta.replace(" ","")]
+                for commonwordpart in commonword.split('~'):
+                    concatarray.append(commonwordpart)
             else:
-                underarr.append(w)
-        wordlist = concat([ta.replace(" ",""),'wireless'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([ta.replace(" ",""),'staff'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([ta.replace(" ",""),'corporate'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([ta.replace(" ",""),'business'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([ta.replace(" ",""),'employee'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
+                concatarray = [ta.replace(" ",""),commonword]
+            wordlist = concat(concatarray)
+            for w in wordlist:
+                if len(w) >= 8:
+                    wordlistall.append(w)
+                else:
+                    underarr.append(w)
 #alttownship + common words
 if alttownship != "":
     for at in alttownshipentries:
-        wordlist = concat([at.replace(" ",""),'wi','fi'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
+        for commonword in commonwords:
+            if len(commonword.split('~')) > 1:
+                concatarray = [at.replace(" ","")]
+                for commonwordpart in commonword.split('~'):
+                    concatarray.append(commonwordpart)
             else:
-                underarr.append(w)
-        wordlist = concat([at.replace(" ",""),'wireless'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([at.replace(" ",""),'staff'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([at.replace(" ",""),'corporate'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
-        wordlist = concat([at.replace(" ",""),'business'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w) 
-        wordlist = concat([at.replace(" ",""),'employee'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarr.append(w)
+                concatarray = [at.replace(" ",""),commonword]
+            wordlist = concat(concatarray)
+            for w in wordlist:
+                if len(w) >= 8:
+                    wordlistall.append(w)
+                else:
+                    underarr.append(w)
 #township + last 4 phone
 if town != "" and phonelast4 != "":
     wordlist = concat([town.replace(" ",""),phonelast4])
@@ -4532,82 +4372,35 @@ if month != "" and yyyy != "":
             underarr.append(w)
 #ssid + common words
 if ssid != "":
-    wordlist = concat([ssid.replace(" ",""),'wi','fi'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
+    for commonword in commonwords:
+        if len(commonword.split('~')) > 1:
+            concatarray = [ssid.replace(" ","")]
+            for commonwordpart in commonword.split('~'):
+                concatarray.append(commonwordpart)
         else:
-            underarr.append(w)
-    wordlist = concat([ssid.replace(" ",""),'wireless'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w) 
-    wordlist = concat([ssid.replace(" ",""),'staff'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
-    wordlist = concat([ssid.replace(" ",""),'corporate'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
-    wordlist = concat([ssid.replace(" ",""),'business'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
-    wordlist = concat([ssid.replace(" ",""),'employee'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
+            concatarray = [ssid.replace(" ",""),commonword]
+        wordlist = concat(concatarray)
+        for w in wordlist:
+            if len(w) >= 8:
+                wordlistall.append(w)
+            else:
+                underarr.append(w)
 #STATE ACRO
 
 if state != "":
-    wordlist = concat([state.replace(" ",""),'wi','fi'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
+    for commonword in commonwords:
+        if len(commonword.split('~')) > 1:
+            concatarray = [state.replace(" ","")]
+            for commonwordpart in commonword.split('~'):
+                concatarray.append(commonwordpart)
         else:
-            underarr.append(w)
-    
-    wordlist = concat([state.replace(" ",""),'wireless'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w) 
-    wordlist = concat([state.replace(" ",""),'staff'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
-    wordlist = concat([state.replace(" ",""),'corporate'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w)
-    wordlist = concat([state.replace(" ",""),'business'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w) 
-    wordlist = concat([state.replace(" ",""),'employee'])
-    for w in wordlist:
-        if len(w) >= 8:
-            wordlistall.append(w)
-        else:
-            underarr.append(w) 
+            concatarray = [state.replace(" ",""),commonword]
+        wordlist = concat(concatarray)
+        for w in wordlist:
+            if len(w) >= 8:
+                wordlistall.append(w)
+            else:
+                underarr.append(w)
 
 #state + last 4 phone
 if state != "" and phonelast4 != "":
@@ -4851,49 +4644,37 @@ if state != "" and month != "" and yy != "":
             wordlistall.append(w)
         else:
             underarr.append(w)
+#new wordlistallsave
+#Remove duplicates and write to file
+leetlist = list(set(leetlist))           
+wordlistall = list(set(wordlistall))            
+for w in wordlistall:
+    wlfhandle.write(w + '\n')
+for w in leetlist:
+    wlfhandle.write(w + '\n')
+wlfhandle.close()
 
 if disableunderarr == 0:
+    wlfhandle = open(wordlistfile,'a')
     undermod = []
     #underarr + common words
     underarrtemp = []
     wordlistall = []
+    leetlist = []
     for under in underarr:
-        wordlist = concat([under,'wi','fi'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
+        for commonword in commonwords:
+            if len(commonword.split('~')) > 1:
+                concatarray = [under.replace(" ","")]
+                for commonwordpart in commonword.split('~'):
+                    concatarray.append(commonwordpart)
             else:
-                underarrtemp.append(w)
-        wordlist = concat([under,'wireless'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarrtemp.append(w) 
-        wordlist = concat([under,'staff'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarrtemp.append(w)
-        wordlist = concat([under,'corporate'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarrtemp.append(w)
-        wordlist = concat([under,'business'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarrtemp.append(w)
-        wordlist = concat([under,'employee'])
-        for w in wordlist:
-            if len(w) >= 8:
-                wordlistall.append(w)
-            else:
-                underarrtemp.append(w)
+                concatarray = [under.replace(" ",""),commonword]
+            wordlist = concat(concatarray)
+            for w in wordlist:
+                if len(w) >= 8:
+                    wordlistall.append(w)
+                else:
+                    underarr.append(w)
     for under in underarrtemp:
         undermod.append(under)
     #underarr + commonnumbers
@@ -5033,14 +4814,14 @@ if disableunderarr == 0:
             else:
                 undermod.append(under + specchar)
             
-#Remove duplicates and write to file            
-leetlist = list(set(leetlist))           
-wordlistall = list(set(wordlistall))            
-for w in wordlistall:
-    wlfhandle.write(w + '\n')
-for w in leetlist:
-    wlfhandle.write(w + '\n')
-wlfhandle.close()   
+    #Remove duplicates and write to file            
+    leetlist = list(set(leetlist))           
+    wordlistall = list(set(wordlistall))            
+    for w in wordlistall:
+        wlfhandle.write(w + '\n')
+    for w in leetlist:
+        wlfhandle.write(w + '\n')
+    wlfhandle.close()   
 
 wordlistall = []
 leetlist = []
@@ -5048,34 +4829,47 @@ wlfhandle = open(wordlistfile,'a')
 #append common word iterations to other words less than 8 characters. If still less than 8, add to second list
 
 if disableunderarr == 0:
-    wifiword = concat(['wi','fi'])
-    stateword = []
-    ownerstateword = []
-    if state != '':
-        stateword.append(state[0].lower() + state[1].lower())
-        stateword.append(state[0].lower() + state[1].upper())
-        stateword.append(state[0].upper() + state[1].lower())
-        stateword.append(state[0].upper() + state[1].upper())
-    if ownerstate != '':
-        ownerstateword.append(ownerstate[0].lower() + ownerstate[1].lower())
-        ownerstateword.append(ownerstate[0].lower() + ownerstate[1].upper())
-        ownerstateword.append(ownerstate[0].upper() + ownerstate[1].lower())
-        ownerstateword.append(ownerstate[0].upper() + ownerstate[1].upper())
+    #wifiword = concat(['wi','fi'])
+    #I decided I hate this, state should be applied as separate iteration. If more advanced concats are needed, this should be done with deepconcat routines 12/22/23
+    # stateword = []
+    # ownerstateword = []
+    # if state != '':
+        # stateword.append(state[0].lower() + state[1].lower())
+        # stateword.append(state[0].lower() + state[1].upper())
+        # stateword.append(state[0].upper() + state[1].lower())
+        # stateword.append(state[0].upper() + state[1].upper())
+    # if ownerstate != '':
+        # ownerstateword.append(ownerstate[0].lower() + ownerstate[1].lower())
+        # ownerstateword.append(ownerstate[0].lower() + ownerstate[1].upper())
+        # ownerstateword.append(ownerstate[0].upper() + ownerstate[1].lower())
+        # ownerstateword.append(ownerstate[0].upper() + ownerstate[1].upper())
 
 
     othercommonwords = []
-    others = ['wireless','staff','corporate','business','employee']
+    #others = ['wireless','staff','corporate','business','employee']
     undermodcommonwords = []
+    #Changed iteration through others to commonwords
     for pre in others:
         tempcommon = concatnoleet([pre])
         for tempc in tempcommon:
             othercommonwords.append(tempc)
-    othercommonwords+=wifiword
+            
+    for commonword in commonwords:
+        if len(commonword.split('~')) > 1:
+            concatarray = []
+            for commonwordpart in commonword.split('~'):
+                concatarray.append(commonwordpart)
+        else:
+            concatarray = [commonword]
+        tempcommon = concatnoleet(concatarray)
+        for tempc in tempcommon:
+            othercommonwords.append(tempc)
     othercommonwords+=leetlist
-    if len(stateword) > 0:
-        othercommonwords += stateword
-    if len(ownerstateword) > 0:
-        othercommonwords += ownerstateword
+    #I decided I hate this, state should be applied as separate iteration. If more advanced concats are needed, this should be done with deepconcat routines 12/22/23
+    # if len(stateword) > 0:
+        # othercommonwords += stateword
+    # if len(ownerstateword) > 0:
+        # othercommonwords += ownerstateword
 
     for underword in undermod:
         isanycommonpresent = 0
@@ -5197,6 +4991,7 @@ if noappendcommonnum == 0:
 
     for line in wlflines:
         allints = re.findall(r'\d+',line)
+        
         isnotspecialsub = 0
         line = line.strip()
         line = line.rstrip()
@@ -5208,6 +5003,7 @@ if noappendcommonnum == 0:
                 #append common number if not in and no other int
                 for commonnumber in commonnumbers:
                     concatline = line + commonnumber
+                    
                     wordlistall.append(concatline)
                 # #append founding year if not in and no other int
                 # if yyyy != '':
@@ -5586,7 +5382,7 @@ if noappendspecchar == 0:
                 wordlistall.append(line + specchar)
     wlfhandle.close()
     wlfhandle = open(wordlistfile,'a')
-    wordlistall = list(set(wordlistall))
+    #wordlistall = list(set(wordlistall))
     for w in wordlistall:
         wlfhandle.write(w + '\n')
     wlfhandle.close()
@@ -5602,6 +5398,8 @@ if noprependspecchar == 0:
         if line[0] not in commonspec:
             for specchar in commonspec:
                 wordlistall.append(specchar + line)
+    wlfhandle.close()
+    wlfhandle = open(wordlistfile,'a')
     #wordlistall = list(set(wordlistall))
     for w in wordlistall:
         wlfhandle.write(w + '\n')
